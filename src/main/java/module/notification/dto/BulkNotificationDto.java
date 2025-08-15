@@ -1,10 +1,7 @@
 package module.notification.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +11,7 @@ import module.notification.enums.NotificationPriority;
 import module.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -22,39 +19,34 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class NotificationRequestDto {
-
+public class BulkNotificationDto {
     @NotBlank
     private String title;
 
     private String content;
 
-    @NotNull
     private NotificationType type;
-
-    private NotificationPriority priority = NotificationPriority.MEDIUM;
-
-    @NotBlank
-    private String recipientId;
-
-    private String recipientEmail;
-
-    private String recipientPhone;
-
-    private String senderId;
+    private NotificationPriority priority;
 
     @NotEmpty
     private Set<ChannelType> channels;
 
-    @Future
     private LocalDateTime scheduledAt;
-
     private String templateId;
+    private Map<String, String> parameters;
 
-    private Map<String, String> parameters = new HashMap<>();
+    @NotEmpty
+    private List<RecipientDto> recipients;
 
-    private String externalId;
-
-    private String metadata;
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RecipientDto {
+        private String id;
+        private String email;
+        private String phone;
+        private Map<String, String> customParameters;
+    }
 }
+
