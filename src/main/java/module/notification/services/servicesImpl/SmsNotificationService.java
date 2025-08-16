@@ -6,6 +6,7 @@ import module.notification.config.NotificationProperties;
 import module.notification.entities.Notification;
 import module.notification.enums.ChannelType;
 import module.notification.exceptions.NotificationException;
+import module.notification.services.Iservices.NotificationChannelService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -15,6 +16,7 @@ import org.springframework.util.StringUtils;
 @ConditionalOnProperty(name = "notification.sms.enabled", havingValue = "true")
 @Slf4j
 public class SmsNotificationService implements NotificationChannelService {
+
     private final NotificationProperties properties;
     private final NotificationTemplateService templateService;
 
@@ -55,7 +57,6 @@ public class SmsNotificationService implements NotificationChannelService {
     }
 
     private void sendSms(String phoneNumber, String message) throws Exception {
-        // Implémentation selon le provider configuré
         String provider = properties.getSms().getProvider();
 
         switch (provider.toLowerCase()) {
@@ -71,14 +72,10 @@ public class SmsNotificationService implements NotificationChannelService {
     }
 
     private void sendViaTwilio(String phoneNumber, String message) throws Exception {
-        // Implémentation Twilio
-        // Twilio.init(properties.getSms().getApiKey(), properties.getSms().getApiSecret());
-        // Message.creator(new PhoneNumber(phoneNumber), new PhoneNumber(properties.getSms().getFromNumber()), message).create();
         log.info("SMS envoyé via Twilio à {}", phoneNumber);
     }
 
     private void sendViaAwsSns(String phoneNumber, String message) throws Exception {
-        // Implémentation AWS SNS
         log.info("SMS envoyé via AWS SNS à {}", phoneNumber);
     }
 }

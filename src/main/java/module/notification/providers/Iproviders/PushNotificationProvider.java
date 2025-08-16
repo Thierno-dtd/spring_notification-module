@@ -1,4 +1,4 @@
-package module.notification.providers;
+package module.notification.providers.Iproviders;
 
 import java.util.Map;
 

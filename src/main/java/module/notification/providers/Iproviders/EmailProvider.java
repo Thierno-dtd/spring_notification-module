@@ -1,4 +1,6 @@
-package module.notification.providers;
+package module.notification.providers.Iproviders;
+
+import java.util.Map;
 
 public interface EmailProvider {
     void sendEmail(String to, String subject, String content) throws Exception;

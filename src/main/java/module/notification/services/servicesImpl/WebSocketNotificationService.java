@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import module.notification.entities.Notification;
 import module.notification.enums.ChannelType;
+import module.notification.services.Iservices.NotificationChannelService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(name = "notification.websocket.enabled", havingValue = "true")
 @Slf4j
 public class WebSocketNotificationService implements NotificationChannelService {
+
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
 
@@ -26,7 +28,6 @@ public class WebSocketNotificationService implements NotificationChannelService 
     public void send(Notification notification) throws Exception {
         String destination = "/topic/notifications/" + notification.getRecipientId();
 
-        // Créer le payload WebSocket
         var payload = objectMapper.createObjectNode();
         payload.put("id", notification.getId());
         payload.put("title", notification.getTitle());
@@ -42,6 +43,6 @@ public class WebSocketNotificationService implements NotificationChannelService 
 
     @Override
     public boolean isEnabled() {
-        return true; // Toujours activé si le service est instancié
+        return true;
     }
 }

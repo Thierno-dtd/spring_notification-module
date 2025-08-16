@@ -16,6 +16,7 @@ import org.springframework.util.StringUtils;
 @ConditionalOnProperty(name = "notification.push.enabled", havingValue = "true")
 @Slf4j
 public class PushNotificationService implements NotificationChannelService {
+
     private final NotificationProperties properties;
     private final NotificationTemplateService templateService;
 
@@ -26,7 +27,6 @@ public class PushNotificationService implements NotificationChannelService {
 
     @Override
     public void send(Notification notification) throws Exception {
-        // Récupérer le token push du destinataire depuis la base ou les paramètres
         String pushToken = notification.getParameters().get("pushToken");
         if (!StringUtils.hasText(pushToken)) {
             throw new NotificationException("Token push non fourni pour la notification");
@@ -58,18 +58,6 @@ public class PushNotificationService implements NotificationChannelService {
     }
 
     private void sendPushNotification(String token, String title, String body) throws Exception {
-        // Implémentation Firebase Cloud Messaging
-        /*
-        Message message = Message.builder()
-                .setNotification(Notification.builder()
-                        .setTitle(title)
-                        .setBody(body)
-                        .build())
-                .setToken(token)
-                .build();
-
-        String response = FirebaseMessaging.getInstance().send(message);
-        */
         log.info("Push notification envoyée: {}", title);
     }
 }

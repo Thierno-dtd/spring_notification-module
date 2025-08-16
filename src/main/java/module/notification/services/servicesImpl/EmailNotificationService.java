@@ -1,6 +1,5 @@
 package module.notification.services.servicesImpl;
 
-import io.micrometer.common.util.StringUtils;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +13,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.thymeleaf.TemplateEngine;
-
-import javax.naming.Context;
+import org.thymeleaf.context.Context;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +34,7 @@ public class EmailNotificationService implements NotificationChannelService {
 
     @Override
     public void send(Notification notification) throws MessagingException {
-        if (StringUtils.isBlank(notification.getRecipientEmail())) {
+        if (!StringUtils.hasText(notification.getRecipientEmail())) {
             throw new NotificationException("Email du destinataire non fourni");
         }
 
@@ -54,17 +53,12 @@ public class EmailNotificationService implements NotificationChannelService {
     }
 
     @Override
-    public int getRetryCount() {
-        return NotificationChannelService.super.getRetryCount();
-    }
-
-    @Override
-    public int getRetryDelayMinutes() {
-        return NotificationChannelService.super.getRetryDelayMinutes();
+    public boolean isEnabled() {
+        return properties.getEmail().isEnabled();
     }
 
     private String processTemplate(Notification notification) {
-        if (StringUtils.isNotBlank(notification.getTemplateId())) {
+        if (StringUtils.hasText(notification.getTemplateId())) {
             Context context = new Context();
             context.setVariables(notification.getParameters());
             return templateEngine.process("email/" + notification.getTemplateId(), context);
