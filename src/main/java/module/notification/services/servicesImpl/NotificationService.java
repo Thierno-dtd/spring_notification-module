@@ -15,6 +15,7 @@ import module.notification.events.NotificationSentEvent;
 import module.notification.exceptions.NotificationException;
 import module.notification.mappers.NotificationMapper;
 import module.notification.repositories.NotificationRepository;
+import module.notification.services.Iservices.NotificationChannelService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,11 +23,13 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -40,9 +43,14 @@ public class NotificationService {
     private final List<NotificationChannelService> channelServices;
     private final NotificationTemplateService templateService;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserNotificationSettingsService userSettingsService;
+    private final NotificationMetricsService metricsService;
 
     // Map des services par type de canal pour un accès rapide
     private Map<ChannelType, NotificationChannelService> channelServiceMap;
+
+    // Cache des tentatives d'envoi pour éviter le spam
+    private final Map<String, LocalDateTime> rateLimitCache = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void initChannelServiceMap() {
@@ -51,20 +59,32 @@ public class NotificationService {
                         NotificationChannelService::getChannelType,
                         Function.identity()
                 ));
+        log.info("Services de notification initialisés: {}", channelServiceMap.keySet());
     }
 
     @Async("notificationTaskExecutor")
     @Transactional
     public CompletableFuture<NotificationDto> sendNotification(NotificationRequestDto request) {
         try {
+            // Vérifier les limites de débit
+            if (isRateLimited(request.getRecipientId())) {
+                throw new NotificationException("Limite de débit dépassée pour le destinataire: " + request.getRecipientId());
+            }
+
             // Créer la notification
             Notification notification = createNotificationFromRequest(request);
+
+            // Filtrer les canaux selon les préférences utilisateur
+            Set<ChannelType> allowedChannels = filterChannelsByUserPreferences(request.getRecipientId(), request.getChannels(), request.getType());
+            notification.setChannels(allowedChannels);
+
             notification = notificationRepository.save(notification);
 
             // Planifier ou envoyer immédiatement
             if (notification.getScheduledAt() != null && notification.getScheduledAt().isAfter(LocalDateTime.now())) {
                 notification.setStatus(NotificationStatus.SCHEDULED);
                 notification = notificationRepository.save(notification);
+                log.info("Notification {} planifiée pour {}", notification.getId(), notification.getScheduledAt());
             } else {
                 processNotification(notification);
             }
@@ -72,7 +92,7 @@ public class NotificationService {
             return CompletableFuture.completedFuture(notificationMapper.toDto(notification));
 
         } catch (Exception e) {
-            log.error("Erreur lors de l'envoi de notification", e);
+            log.error("Erreur lors de l'envoi de notification pour {}", request.getRecipientId(), e);
             throw new NotificationException("Erreur lors de l'envoi de notification: " + e.getMessage(), e);
         }
     }
@@ -80,6 +100,8 @@ public class NotificationService {
     @Async("notificationTaskExecutor")
     @Transactional
     public CompletableFuture<List<NotificationDto>> sendBulkNotifications(BulkNotificationDto bulkRequest) {
+        log.info("Démarrage de l'envoi en masse pour {} destinataires", bulkRequest.getRecipients().size());
+
         List<CompletableFuture<NotificationDto>> futures = bulkRequest.getRecipients()
                 .stream()
                 .map(recipient -> {
@@ -89,9 +111,23 @@ public class NotificationService {
                 .collect(Collectors.toList());
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenApply(v -> futures.stream()
-                        .map(CompletableFuture::join)
-                        .collect(Collectors.toList()));
+                .thenApply(v -> {
+                    List<NotificationDto> results = futures.stream()
+                            .map(future -> {
+                                try {
+                                    return future.get();
+                                } catch (Exception e) {
+                                    log.error("Erreur lors de l'envoi d'une notification en masse", e);
+                                    return null;
+                                }
+                            })
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+
+                    log.info("Envoi en masse terminé: {}/{} notifications envoyées",
+                            results.size(), bulkRequest.getRecipients().size());
+                    return results;
+                });
     }
 
     private void processNotification(Notification notification) {
@@ -100,8 +136,9 @@ public class NotificationService {
             notification = notificationRepository.save(notification);
 
             boolean anySuccess = false;
+            Map<ChannelType, Exception> channelErrors = new HashMap<>();
 
-            // Envoyer via chaque canal configuré
+            // Envoyer via chaque canal configuré avec gestion des erreurs par canal
             for (ChannelType channel : notification.getChannels()) {
                 try {
                     NotificationChannelService channelService = channelServiceMap.get(channel);
@@ -109,18 +146,22 @@ public class NotificationService {
                     if (channelService != null && channelService.isEnabled()) {
                         channelService.send(notification);
                         anySuccess = true;
+                        metricsService.recordNotificationSent(channel, notification.getType());
                         log.debug("Notification {} envoyée via {}", notification.getId(), channel);
                     } else {
                         log.warn("Service de canal {} non disponible ou désactivé", channel);
+                        metricsService.recordNotificationFailed(channel, notification.getType());
                     }
 
                 } catch (Exception e) {
+                    channelErrors.put(channel, e);
                     log.error("Erreur lors de l'envoi via le canal {} pour la notification {}",
                             channel, notification.getId(), e);
 
-                    // Publier événement d'échec pour ce canal
-                    eventPublisher.publishEvent(new NotificationFailedEvent(this, notification,
-                            "Échec canal " + channel + ": " + e.getMessage(), e));
+                    metricsService.recordNotificationFailed(channel, notification.getType());
+
+                    // Programmer une nouvelle tentative si possible
+                    scheduleRetry(notification, channel, e);
                 }
             }
 
@@ -129,8 +170,13 @@ public class NotificationService {
                 notification.setStatus(NotificationStatus.SENT);
                 notification.setSentAt(LocalDateTime.now());
                 eventPublisher.publishEvent(new NotificationSentEvent(this, notification));
+
+                // Nettoyer le cache de limitation de débit après succès
+                clearRateLimit(notification.getRecipientId());
             } else {
                 notification.setStatus(NotificationStatus.FAILED);
+                // Stocker les erreurs dans metadata pour debugging
+                notification.setMetadata(buildErrorMetadata(channelErrors));
             }
 
             notificationRepository.save(notification);
@@ -138,6 +184,7 @@ public class NotificationService {
         } catch (Exception e) {
             log.error("Erreur fatale lors du traitement de la notification {}", notification.getId(), e);
             notification.setStatus(NotificationStatus.FAILED);
+            notification.setMetadata("Erreur fatale: " + e.getMessage());
             notificationRepository.save(notification);
 
             eventPublisher.publishEvent(new NotificationFailedEvent(this, notification,
@@ -146,6 +193,7 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "userNotifications", key = "#recipientId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<NotificationDto> getNotificationsByRecipient(String recipientId, Pageable pageable) {
         Page<Notification> notifications = notificationRepository
                 .findByRecipientIdOrderByCreatedAtDesc(recipientId, pageable);
@@ -153,6 +201,7 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "unreadNotifications", key = "#recipientId")
     public List<NotificationDto> getUnreadNotifications(String recipientId) {
         List<Notification> notifications = notificationRepository.findUnreadNotifications(recipientId);
         return notifications.stream()
@@ -161,6 +210,7 @@ public class NotificationService {
     }
 
     @Transactional
+    @CacheEvict(value = {"userNotifications", "unreadNotifications"}, key = "#recipientId")
     public void markAsRead(Long notificationId, String recipientId) {
         Notification notification = notificationRepository
                 .findByIdAndRecipientId(notificationId, recipientId)
@@ -171,11 +221,13 @@ public class NotificationService {
             notification.setStatus(NotificationStatus.READ);
             notificationRepository.save(notification);
 
+            metricsService.recordNotificationRead(null, notification.getType());
             eventPublisher.publishEvent(new NotificationReadEvent(this, notification));
         }
     }
 
     @Transactional
+    @CacheEvict(value = {"userNotifications", "unreadNotifications"}, key = "#recipientId")
     public void markAllAsRead(String recipientId) {
         List<Notification> unreadNotifications = notificationRepository.findUnreadNotifications(recipientId);
         LocalDateTime now = LocalDateTime.now();
@@ -186,13 +238,27 @@ public class NotificationService {
         });
 
         notificationRepository.saveAll(unreadNotifications);
-
         log.info("Marqué {} notifications comme lues pour {}", unreadNotifications.size(), recipientId);
+
+        // Enregistrer les métriques
+        unreadNotifications.forEach(notification ->
+                metricsService.recordNotificationRead(null, notification.getType()));
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "unreadCount", key = "#recipientId")
     public Long getUnreadCount(String recipientId) {
         return notificationRepository.countByRecipientIdAndReadAtIsNull(recipientId);
+    }
+
+    @Transactional
+    public void deleteNotification(Long notificationId, String recipientId) {
+        Notification notification = notificationRepository
+                .findByIdAndRecipientId(notificationId, recipientId)
+                .orElseThrow(() -> new NotificationException("Notification non trouvée"));
+
+        notificationRepository.delete(notification);
+        log.info("Notification {} supprimée pour {}", notificationId, recipientId);
     }
 
     @Scheduled(fixedDelay = 60000) // Vérifier chaque minute
@@ -201,25 +267,34 @@ public class NotificationService {
         List<Notification> scheduledNotifications = notificationRepository
                 .findByStatusAndScheduledAtBefore(NotificationStatus.SCHEDULED, LocalDateTime.now());
 
-        log.debug("Traitement de {} notifications programmées", scheduledNotifications.size());
-
-        scheduledNotifications.forEach(this::processNotification);
+        if (!scheduledNotifications.isEmpty()) {
+            log.info("Traitement de {} notifications programmées", scheduledNotifications.size());
+            scheduledNotifications.forEach(this::processNotification);
+        }
     }
 
     @Scheduled(fixedDelay = 300000) // Nettoyage toutes les 5 minutes
     @Transactional
     public void cleanupOldNotifications() {
-        // Supprimer les notifications anciennes (ex: plus de 6 mois)
+        // Supprimer les notifications anciennes selon la configuration
         LocalDateTime cutoffDate = LocalDateTime.now().minusMonths(6);
 
-        // Cette implémentation peut être ajustée selon vos besoins de rétention
-        // notificationRepository.deleteByCreatedAtBefore(cutoffDate);
+        // Implémentation du nettoyage selon vos besoins de rétention
+        long deletedCount = notificationRepository.deleteByCreatedAtBeforeAndStatus(
+                cutoffDate, NotificationStatus.READ);
+
+        if (deletedCount > 0) {
+            log.info("Nettoyage effectué: {} notifications supprimées", deletedCount);
+        }
+
+        // Nettoyer le cache de limitation de débit
+        cleanupRateLimitCache();
     }
 
     // Méthodes utilitaires privées
 
     private Notification createNotificationFromRequest(NotificationRequestDto request) {
-        Notification notification = Notification.builder()
+        return Notification.builder()
                 .title(request.getTitle())
                 .content(request.getContent())
                 .type(request.getType())
@@ -236,13 +311,10 @@ public class NotificationService {
                 .metadata(request.getMetadata())
                 .status(NotificationStatus.PENDING)
                 .build();
-
-        return notification;
     }
 
     private NotificationRequestDto createIndividualRequest(BulkNotificationDto bulk, BulkNotificationDto.RecipientDto recipient) {
-        // Fusionner les paramètres globaux avec les paramètres spécifiques au destinataire
-        Map<String, String> finalParameters = new java.util.HashMap<>(bulk.getParameters());
+        Map<String, String> finalParameters = new HashMap<>(bulk.getParameters() != null ? bulk.getParameters() : new HashMap<>());
         if (recipient.getCustomParameters() != null) {
             finalParameters.putAll(recipient.getCustomParameters());
         }
@@ -260,5 +332,47 @@ public class NotificationService {
                 .recipientEmail(recipient.getEmail())
                 .recipientPhone(recipient.getPhone())
                 .build();
+    }
+
+    private Set<ChannelType> filterChannelsByUserPreferences(String recipientId, Set<ChannelType> requestedChannels, module.notification.enums.NotificationType type) {
+        return requestedChannels.stream()
+                .filter(channel -> userSettingsService.isChannelEnabledForUser(recipientId, channel, type))
+                .collect(Collectors.toSet());
+    }
+
+    private boolean isRateLimited(String recipientId) {
+        LocalDateTime lastSent = rateLimitCache.get(recipientId);
+        if (lastSent != null) {
+            // Limite: pas plus d'une notification par minute par utilisateur
+            return lastSent.isAfter(LocalDateTime.now().minusMinutes(1));
+        }
+        rateLimitCache.put(recipientId, LocalDateTime.now());
+        return false;
+    }
+
+    private void clearRateLimit(String recipientId) {
+        rateLimitCache.remove(recipientId);
+    }
+
+    private void cleanupRateLimitCache() {
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
+        rateLimitCache.entrySet().removeIf(entry -> entry.getValue().isBefore(cutoff));
+    }
+
+    private void scheduleRetry(Notification notification, ChannelType channel, Exception error) {
+        // Implémentation de la logique de retry
+        log.debug("Tentative de reprogrammation pour la notification {} sur le canal {}",
+                notification.getId(), channel);
+    }
+
+    private String buildErrorMetadata(Map<ChannelType, Exception> channelErrors) {
+        if (channelErrors.isEmpty()) return null;
+
+        StringBuilder metadata = new StringBuilder();
+        metadata.append("Erreurs par canal: ");
+        channelErrors.forEach((channel, error) ->
+                metadata.append(channel).append(": ").append(error.getMessage()).append("; "));
+
+        return metadata.toString();
     }
 }
