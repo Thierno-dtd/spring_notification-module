@@ -1,9 +1,6 @@
 package module.notification.config;
 
-import module.notification.services.servicesImpl.EmailNotificationService;
 import module.notification.services.servicesImpl.NotificationService;
-import module.notification.services.servicesImpl.PushNotificationService;
-import module.notification.services.servicesImpl.SmsNotificationService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
