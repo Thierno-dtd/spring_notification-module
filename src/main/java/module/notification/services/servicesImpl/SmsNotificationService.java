@@ -19,6 +19,11 @@ public class SmsNotificationService implements NotificationChannelService {
     private final NotificationTemplateService templateService;
 
     @Override
+    public ChannelType getChannelType() {
+        return ChannelType.SMS;
+    }
+
+    @Override
     public void send(Notification notification) throws Exception {
         if (!StringUtils.hasText(notification.getRecipientPhone())) {
             throw new NotificationException("Numéro de téléphone du destinataire non fourni");

@@ -1,4 +1,6 @@
 package module.notification.providers;
 
-public class SmsProvider {
+public interface SmsProvider {
+    void sendSms(String phoneNumber, String message) throws Exception;
+    boolean isConfigured();
 }

@@ -1,4 +1,12 @@
 package module.notification.exceptions;
 
-public class NotificationException {
+public class NotificationException extends RuntimeException {
+
+    public NotificationException(String message) {
+        super(message);
+    }
+
+    public NotificationException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

@@ -16,7 +16,7 @@ public interface NotificationTemplateRepository extends JpaRepository<Notificati
 
     Optional<NotificationTemplate> findByIdAndIsActiveTrue(String id);
 
-    @Query(value = "SELECT t FROM NotificationTemplate t WHERE t.name LIKE %:name% AND t.isActive = true")
+    @Query("SELECT t FROM NotificationTemplate t WHERE t.name LIKE %:name% AND t.isActive = true")
     List<NotificationTemplate> findByNameContainingIgnoreCaseAndIsActiveTrue(@Param("name") String name);
 
 }
