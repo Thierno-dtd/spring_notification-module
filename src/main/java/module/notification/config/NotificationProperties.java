@@ -1,8 +1,5 @@
 package module.notification.config;
 
-import com.twilio.rest.verify.v2.service.RateLimit;
-import jakarta.persistence.Cache;
-import lombok.Cleanup;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -109,12 +106,17 @@ public class NotificationProperties {
             private String privateKey;
         }
 
-        public interface SmsValidation {}
+        public interface SmsValidation {
+        }
     }
 
     @Data
     public static class Push {
         private boolean enabled = false;
+        private String provider = "generic"; // "firebase", "apns", "onesignal", etc.
+        private String apiKey;
+        private String apiSecret;
+        private String serverUrl;
 
         // Firebase Configuration
         private Firebase firebase = new Firebase();
@@ -126,7 +128,7 @@ public class NotificationProperties {
         public static class Firebase {
             private String projectId;
             private String serviceAccountPath;
-            private String databaseUrl;
+            private String serverKey;
         }
 
         @Data
@@ -161,4 +163,29 @@ public class NotificationProperties {
         private double backoffMultiplier = 2.0;
 
         @NotNull
-        private Duration maxDelay
+        private Duration maxDelay = Duration.ofHours(2);
+    }
+
+    @Data
+    public static class RateLimit {
+        private int maxNotificationsPerMinute = 10;
+        private int maxNotificationsPerHour = 100;
+        private int maxEmailPerHour = 50;
+        private int maxSmsPerHour = 20;
+        private boolean enabled = true;
+    }
+
+    @Data
+    public static class Cleanup {
+        private boolean enabled = true;
+        private Duration retentionPeriod = Duration.ofDays(30);
+        private String cronExpression = "0 0 2 * * ?";
+    }
+
+    @Data
+    public static class Cache {
+        private boolean enabled = true;
+        private Duration ttl = Duration.ofHours(1);
+        private int maxSize = 1000;
+    }
+}

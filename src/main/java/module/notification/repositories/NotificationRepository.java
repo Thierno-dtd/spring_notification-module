@@ -31,4 +31,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Modifying
     @Query("UPDATE Notification n SET n.status = :status WHERE n.id IN :ids")
     void updateStatusForIds(@Param("ids") List<Long> ids, @Param("status") NotificationStatus status);
+
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.createdAt < :cutoffDate AND n.status = :status")
+    int deleteByCreatedAtBeforeAndStatus(@Param("cutoffDate") LocalDateTime cutoffDate,
+                                          @Param("status") NotificationStatus status);
 }

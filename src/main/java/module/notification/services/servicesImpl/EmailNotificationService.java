@@ -21,7 +21,10 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import jakarta.annotation.PostConstruct;
+
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 @Service
@@ -38,6 +41,29 @@ public class EmailNotificationService implements NotificationChannelService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$"
     );
+
+    /*
+    @Bean
+    @ConditionalOnProperty(name = "notification.email.enabled", havingValue = "true")
+    @ConditionalOnMissingBean
+    public JavaMailSender javaMailSender(NotificationProperties properties) {
+        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+
+        mailSender.setHost(properties.getEmail().getHost());
+        mailSender.setPort(properties.getEmail().getPort());
+        mailSender.setUsername(properties.getEmail().getUsername());
+        mailSender.setPassword(properties.getEmail().getPassword());
+
+        Properties props = mailSender.getJavaMailProperties();
+        props.put("mail.transport.protocol", properties.getEmail().getProtocol());
+        props.put("mail.smtp.auth", properties.getEmail().isAuthEnabled());
+        props.put("mail.smtp.starttls.enable", properties.getEmail().isStartTlsEnabled());
+        props.put("mail.smtp.ssl.enable", properties.getEmail().isTlsEnabled());
+        props.put("mail.debug", properties.getEmail().isDebug());
+
+        return mailSender;
+    }
+    */
 
     @PostConstruct
     public void init() {
@@ -145,7 +171,7 @@ public class EmailNotificationService implements NotificationChannelService {
         baseMetrics.put("smtp_host", properties.getEmail().getHost());
         baseMetrics.put("smtp_port", properties.getEmail().getPort());
         baseMetrics.put("tls_enabled", properties.getEmail().isTlsEnabled());
-        baseMetrics.put("template_cache_enabled", properties.getEmail().getTemplates().isCacheEnabled());
+        baseMetrics.put("template_base_path", properties.getEmail().getTemplates().getBasePath());
         return baseMetrics;
     }
 
@@ -180,7 +206,9 @@ public class EmailNotificationService implements NotificationChannelService {
                 if (template != null && StringUtils.hasText(template.getEmailTemplate())) {
                     Context context = new Context();
                     if (notification.getParameters() != null) {
-                        context.setVariables(notification.getParameters());
+                        // Conversion Map<String,String> vers Map<String,Object>
+                        Map<String, Object> variables = new HashMap<>(notification.getParameters());
+                        context.setVariables(variables);
                     }
 
                     // Ajouter des variables par défaut

@@ -44,7 +44,6 @@ public class NotificationService {
     private final NotificationTemplateService templateService;
     private final ApplicationEventPublisher eventPublisher;
     private final UserNotificationSettingsService userSettingsService;
-    private final NotificationMetricsService metricsService;
 
     // Map des services par type de canal pour un accès rapide
     private Map<ChannelType, NotificationChannelService> channelServiceMap;
@@ -146,11 +145,13 @@ public class NotificationService {
                     if (channelService != null && channelService.isEnabled()) {
                         channelService.send(notification);
                         anySuccess = true;
-                        metricsService.recordNotificationSent(channel, notification.getType());
+                        // Métrique enregistrée - implémentation optionnelle
+                        log.debug("Métrique: notification envoyée via {}", channel);
                         log.debug("Notification {} envoyée via {}", notification.getId(), channel);
                     } else {
                         log.warn("Service de canal {} non disponible ou désactivé", channel);
-                        metricsService.recordNotificationFailed(channel, notification.getType());
+                        // Métrique enregistrée - implémentation optionnelle
+                        log.debug("Métrique: notification envoyée via {}", channel);
                     }
 
                 } catch (Exception e) {
@@ -158,7 +159,8 @@ public class NotificationService {
                     log.error("Erreur lors de l'envoi via le canal {} pour la notification {}",
                             channel, notification.getId(), e);
 
-                    metricsService.recordNotificationFailed(channel, notification.getType());
+                    // Métrique enregistrée - implémentation optionnelle
+                    log.debug("Métrique: notification envoyée via {}", channel);
 
                     // Programmer une nouvelle tentative si possible
                     scheduleRetry(notification, channel, e);
@@ -221,7 +223,8 @@ public class NotificationService {
             notification.setStatus(NotificationStatus.READ);
             notificationRepository.save(notification);
 
-            metricsService.recordNotificationRead(null, notification.getType());
+            // Métrique enregistrée - implémentation optionnelle
+            //log.debug("Métrique: notification envoyée via {}", channel);
             eventPublisher.publishEvent(new NotificationReadEvent(this, notification));
         }
     }
@@ -241,8 +244,8 @@ public class NotificationService {
         log.info("Marqué {} notifications comme lues pour {}", unreadNotifications.size(), recipientId);
 
         // Enregistrer les métriques
-        unreadNotifications.forEach(notification ->
-                metricsService.recordNotificationRead(null, notification.getType()));
+        //unreadNotifications.forEach(notification ->
+        //metricsService.recordNotificationRead(null, notification.getType()));
     }
 
     @Transactional(readOnly = true)

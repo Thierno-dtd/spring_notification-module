@@ -42,8 +42,13 @@ public class SmsProviderImpl implements SmsProvider {
     }
 
     private void sendViaTwilio(String phoneNumber, String message) throws Exception {
-        if (!Twilio.getAccountSid().isPresent()) {
-            Twilio.init(properties.getSms().getApiKey(), properties.getSms().getApiSecret());
+        // Vérifier si Twilio est déjà initialisé
+        String currentAccountSid = System.getProperty("TWILIO_ACCOUNT_SID");
+        if (currentAccountSid == null || !currentAccountSid.equals(properties.getSms().getTwilio().getAccountSid())) {
+            Twilio.init(
+                    properties.getSms().getTwilio().getAccountSid(),
+                    properties.getSms().getTwilio().getAuthToken()
+            );
         }
 
         Message twilioMessage = Message.creator(
@@ -78,9 +83,19 @@ public class SmsProviderImpl implements SmsProvider {
 
     @Override
     public boolean isConfigured() {
-        return StringUtils.hasText(properties.getSms().getProvider()) &&
-                StringUtils.hasText(properties.getSms().getApiKey()) &&
-                StringUtils.hasText(properties.getSms().getApiSecret());
+        String provider = properties.getSms().getProvider();
+
+        switch (provider.toLowerCase()) {
+            case "twilio":
+                return StringUtils.hasText(properties.getSms().getTwilio().getAccountSid()) &&
+                        StringUtils.hasText(properties.getSms().getTwilio().getAuthToken());
+            case "aws-sns":
+                return StringUtils.hasText(properties.getSms().getAwsSns().getAccessKey()) &&
+                        StringUtils.hasText(properties.getSms().getAwsSns().getSecretKey());
+            default:
+                return StringUtils.hasText(properties.getSms().getApiKey()) &&
+                        StringUtils.hasText(properties.getSms().getApiSecret());
+        }
     }
 }
 
