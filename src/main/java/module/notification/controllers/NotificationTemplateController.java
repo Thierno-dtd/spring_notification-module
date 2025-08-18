@@ -1,5 +1,7 @@
 package module.notification.controllers;
 
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.info.Info;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import module.notification.dto.NotificationTemplateDto;
@@ -19,6 +21,13 @@ import java.util.List;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 @Tag(name = "Notification Templates", description = "API de gestion des templates de notifications")
+@OpenAPIDefinition(
+        info = @Info(
+                title = "Notification Module API",
+                version = "1.0.0",
+                description = "API pour la gestion des notifications"
+        )
+)
 public class NotificationTemplateController {
 
     private final NotificationTemplateService templateService;

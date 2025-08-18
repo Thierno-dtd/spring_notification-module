@@ -1,5 +1,7 @@
 package module.notification.controllers;
 
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.info.Info;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import module.notification.dto.BulkNotificationDto;
@@ -23,6 +25,13 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 @Tag(name = "Notifications", description = "API de gestion des notifications")
+@OpenAPIDefinition(
+        info = @Info(
+                title = "Notification Module API",
+                version = "1.0.0",
+                description = "API pour la gestion des notifications"
+        )
+)
 public class NotificationController {
 
     private final NotificationService notificationService;
