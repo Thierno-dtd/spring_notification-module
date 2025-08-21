@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+# Ignore le vrai fichier de config
+src/main/resources/application.properties
+
