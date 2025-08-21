@@ -20,14 +20,7 @@ import java.util.List;
 @RequestMapping("/api/notification-templates")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@Tag(name = "Notification Templates", description = "API de gestion des templates de notifications")
-@OpenAPIDefinition(
-        info = @Info(
-                title = "Notification Module API",
-                version = "1.0.0",
-                description = "API pour la gestion des notifications"
-        )
-)
+
 public class NotificationTemplateController {
 
     private final NotificationTemplateService templateService;
