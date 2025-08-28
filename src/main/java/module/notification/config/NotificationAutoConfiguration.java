@@ -83,7 +83,7 @@ public class NotificationAutoConfiguration {
     public EmailProviderImpl emailProviderImpl(
             JavaMailSender mailSender,
             NotificationProperties properties,
-            TemplateEngine templateEngine) {
+            NotificationTemplateService templateEngine) {
         return new EmailProviderImpl(mailSender, properties, templateEngine);
     }
 
