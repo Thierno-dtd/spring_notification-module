@@ -3,7 +3,6 @@ package module.notification.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import module.notification.mappers.NotificationMapper;
 import module.notification.providers.Iproviders.SmsProvider;
-import module.notification.providers.proviedersImp.EmailProviderImpl;
 import module.notification.repositories.NotificationRepository;
 import module.notification.repositories.NotificationTemplateRepository;
 import module.notification.services.Iservices.NotificationChannelService;
@@ -75,16 +74,6 @@ public class NotificationAutoConfiguration {
             TemplateEngine templateEngine,
             NotificationTemplateRepository templateRepository) {
         return new EmailNotificationService(mailSender, properties, templateEngine, templateRepository);
-    }
-
-    @Bean
-    @ConditionalOnProperty(name = "notification.email.enabled", havingValue = "true")
-    @ConditionalOnClass(name = "org.springframework.mail.javamail.JavaMailSender")
-    public EmailProviderImpl emailProviderImpl(
-            JavaMailSender mailSender,
-            NotificationProperties properties,
-            NotificationTemplateService templateEngine) {
-        return new EmailProviderImpl(mailSender, properties, templateEngine);
     }
 
     @Bean
