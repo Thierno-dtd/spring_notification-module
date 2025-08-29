@@ -5,15 +5,14 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import module.notification.config.NotificationProperties;
+import module.notification.entities.Notification;
 import module.notification.providers.Iproviders.EmailProvider;
-import org.springframework.boot.autoconfigure.AutoConfigureOrder;
+import module.notification.services.servicesImpl.NotificationTemplateService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.Context;
 
 import java.util.Map;
 
@@ -25,7 +24,7 @@ public class EmailProviderImpl implements EmailProvider {
 
     private final JavaMailSender mailSender;
     private final NotificationProperties properties;
-    private final TemplateEngine templateEngine;
+    private final NotificationTemplateService templateService;
 
     @Override
     public void sendEmail(String to, String subject, String content) throws Exception {
@@ -42,12 +41,61 @@ public class EmailProviderImpl implements EmailProvider {
     }
 
     @Override
-    public void sendEmailWithTemplate(String to, String subject, String templateName, Map<String, Object> variables) throws Exception {
-        Context context = new Context();
-        context.setVariables(variables);
+    public void sendEmailWithTemplate(String to, String subject, String templateId, Map<String, Object> variables) throws Exception {
+        // Convertir Map<String, Object> en Map<String, String>
+        Map<String, String> stringParameters = null;
+        if (variables != null) {
+            stringParameters = variables.entrySet().stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Map.Entry::getKey,
+                            entry -> entry.getValue() != null ? entry.getValue().toString() : ""
+                    ));
+        }
 
-        String content = templateEngine.process("email/" + templateName, context);
+        // Récupérer le template depuis la base de données via le service
+        String content = templateService.processTemplateById(templateId, stringParameters);
         sendEmail(to, subject, content);
+    }
+
+    /**
+     * Nouvelle méthode pour envoyer un email à partir d'une notification
+     * avec template stocké en base de données
+     */
+    public void sendNotificationEmail(Notification notification) throws Exception {
+        if (!StringUtils.hasText(notification.getRecipientEmail())) {
+            throw new IllegalArgumentException("Email destinataire manquant pour la notification: " + notification.getId());
+        }
+
+        String content;
+
+        // Si un template est spécifié, l'utiliser
+        if (notification.getTemplateId() != null) {
+            content = templateService.processTemplateById(notification.getTemplateId(), notification.getParameters());
+        } else {
+            // Sinon utiliser le contenu direct de la notification
+            content = processContent(notification.getContent(), notification.getParameters());
+        }
+
+        sendEmail(notification.getRecipientEmail(), notification.getTitle(), content);
+    }
+
+    /**
+     * Traite le contenu en remplaçant les variables par leurs valeurs
+     */
+    private String processContent(String content, Map<String, String> parameters) {
+        if (content == null || parameters == null || parameters.isEmpty()) {
+            return content;
+        }
+
+        String processedContent = content;
+        for (Map.Entry<String, String> entry : parameters.entrySet()) {
+            String placeholder = "{{" + entry.getKey() + "}}";
+            if (entry.getValue() != null) {
+                processedContent = processedContent.replace(placeholder, entry.getValue());
+            }
+        }
+
+        return processedContent;
     }
 
     @Override
@@ -56,4 +104,3 @@ public class EmailProviderImpl implements EmailProvider {
                 StringUtils.hasText(properties.getEmail().getFrom());
     }
 }
-

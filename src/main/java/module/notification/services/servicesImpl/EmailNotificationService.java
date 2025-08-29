@@ -42,29 +42,6 @@ public class EmailNotificationService implements NotificationChannelService {
             "^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$"
     );
 
-    /*
-    @Bean
-    @ConditionalOnProperty(name = "notification.email.enabled", havingValue = "true")
-    @ConditionalOnMissingBean
-    public JavaMailSender javaMailSender(NotificationProperties properties) {
-        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-
-        mailSender.setHost(properties.getEmail().getHost());
-        mailSender.setPort(properties.getEmail().getPort());
-        mailSender.setUsername(properties.getEmail().getUsername());
-        mailSender.setPassword(properties.getEmail().getPassword());
-
-        Properties props = mailSender.getJavaMailProperties();
-        props.put("mail.transport.protocol", properties.getEmail().getProtocol());
-        props.put("mail.smtp.auth", properties.getEmail().isAuthEnabled());
-        props.put("mail.smtp.starttls.enable", properties.getEmail().isStartTlsEnabled());
-        props.put("mail.smtp.ssl.enable", properties.getEmail().isTlsEnabled());
-        props.put("mail.debug", properties.getEmail().isDebug());
-
-        return mailSender;
-    }
-    */
-
     @PostConstruct
     public void init() {
         if (isEnabled() && !isConfigured()) {
@@ -204,21 +181,10 @@ public class EmailNotificationService implements NotificationChannelService {
                         .orElse(null);
 
                 if (template != null && StringUtils.hasText(template.getEmailTemplate())) {
-                    Context context = new Context();
-                    if (notification.getParameters() != null) {
-                        // Conversion Map<String,String> vers Map<String,Object>
-                        Map<String, Object> variables = new HashMap<>(notification.getParameters());
-                        context.setVariables(variables);
-                    }
 
-                    // Ajouter des variables par défaut
-                    context.setVariable("title", notification.getTitle());
-                    context.setVariable("content", notification.getContent());
-                    context.setVariable("recipientId", notification.getRecipientId());
-                    context.setVariable("type", notification.getType().getDisplayName());
-                    context.setVariable("priority", notification.getPriority().name());
+                    // Plus simple et cohérent avec le reste de votre code
+                    return processTemplateWithVariables(template.getEmailTemplate(), notification.getParameters());
 
-                    return templateEngine.process("email/" + notification.getTemplateId(), context);
                 }
             } catch (Exception e) {
                 log.warn("Erreur lors du traitement du contenu via template {}: {}",
@@ -291,5 +257,29 @@ public class EmailNotificationService implements NotificationChannelService {
 
     private boolean isValidEmail(String email) {
         return StringUtils.hasText(email) && EMAIL_PATTERN.matcher(email).matches();
+    }
+
+    private String processTemplateWithVariables(String templateContent, Map<String, String> parameters) {
+        if (templateContent == null) {
+            return null;
+        }
+
+        if (parameters == null || parameters.isEmpty()) {
+            return wrapContentInHtml(templateContent);
+        }
+
+        String processed = templateContent;
+        for (Map.Entry<String, String> param : parameters.entrySet()) {
+            String placeholder = "{{" + param.getKey() + "}}";
+            String value = param.getValue() != null ? param.getValue() : "";
+            processed = processed.replace(placeholder, value);
+        }
+
+        // Vérifier si le contenu est déjà du HTML ou s'il faut l'enrober
+        if (processed.toLowerCase().contains("<html") || processed.toLowerCase().contains("<!doctype")) {
+            return processed;
+        } else {
+            return wrapContentInHtml(processed);
+        }
     }
 }

@@ -269,4 +269,79 @@ public class NotificationTemplateService {
 
         return testData;
     }
+
+    /**
+     * Traite un template par son ID (String) en remplaçant les variables par leurs valeurs
+     * Retourne le contenu email par défaut
+     */
+    @Transactional(readOnly = true)
+    public String processTemplateById(String templateId, Map<String, String> parameters) {
+        if (!StringUtils.hasText(templateId)) {
+            throw new IllegalArgumentException("Template ID ne peut pas être null ou vide");
+        }
+
+        // Récupérer le template depuis la base de données
+        NotificationTemplate template = templateRepository.findByIdAndIsActiveTrue(templateId)
+                .orElseThrow(() -> new TemplateNotFoundException("Template non trouvé avec ID: " + templateId));
+
+        // Retourner le contenu email traité
+        return processTemplate(template.getEmailTemplate(), parameters);
+    }
+
+    /**
+     * Traite un template par son ID (String) pour un canal spécifique
+     */
+    @Transactional(readOnly = true)
+    public String processTemplateById(String templateId, Map<String, String> parameters, String channelType) {
+        if (!StringUtils.hasText(templateId)) {
+            throw new IllegalArgumentException("Template ID ne peut pas être null ou vide");
+        }
+
+        NotificationTemplate template = templateRepository.findByIdAndIsActiveTrue(templateId)
+                .orElseThrow(() -> new TemplateNotFoundException("Template non trouvé avec ID: " + templateId));
+
+        String templateContent = getTemplateContentByChannel(template, channelType);
+        return processTemplate(templateContent, parameters);
+    }
+
+    /**
+     * Traite le titre d'un template par son ID (String) - pour email
+     */
+    @Transactional(readOnly = true)
+    public String processTemplateTitleById(String templateId, Map<String, String> parameters) {
+        if (!StringUtils.hasText(templateId)) {
+            return null;
+        }
+
+        NotificationTemplate template = templateRepository.findByIdAndIsActiveTrue(templateId)
+                .orElseThrow(() -> new TemplateNotFoundException("Template non trouvé avec ID: " + templateId));
+
+        if (!StringUtils.hasText(template.getEmailSubject())) {
+            return null;
+        }
+
+        return processTemplate(template.getEmailSubject(), parameters);
+    }
+
+    /**
+     * Récupère le contenu du template selon le canal
+     */
+    private String getTemplateContentByChannel(NotificationTemplate template, String channelType) {
+        if (channelType == null) {
+            return template.getEmailTemplate(); // défaut
+        }
+
+        switch (channelType.toUpperCase()) {
+            case "EMAIL":
+                return template.getEmailTemplate();
+            case "SMS":
+                return template.getSmsTemplate();
+            case "PUSH":
+                return template.getPushTemplate();
+            case "WEB":
+                return template.getWebTemplate();
+            default:
+                return template.getEmailTemplate();
+        }
+    }
 }

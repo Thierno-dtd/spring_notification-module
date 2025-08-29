@@ -1,7 +1,5 @@
 package module.notification.controllers;
 
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
-import io.swagger.v3.oas.annotations.info.Info;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import module.notification.dto.BulkNotificationDto;
@@ -10,7 +8,6 @@ import module.notification.dto.NotificationRequestDto;
 import module.notification.services.servicesImpl.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
