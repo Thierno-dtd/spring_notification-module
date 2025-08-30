@@ -39,9 +39,13 @@ public class NotificationAutoConfiguration {
             List<NotificationChannelService> channelServices,
             NotificationTemplateService templateService,
             ApplicationEventPublisher eventPublisher,
-            UserNotificationSettingsService userSettingsService) {
+            UserNotificationSettingsService userSettingsService,
+            CircuitBreakerService circuitBreakerService,
+            NotificationRetryService retryService,
+            AdvancedRateLimiterService rateLimiterService,
+            NotificationMetricsService metricsService) {
         return new NotificationService(notificationRepository, notificationMapper, channelServices,
-                templateService, eventPublisher, userSettingsService);
+                templateService, eventPublisher, userSettingsService, circuitBreakerService, retryService, rateLimiterService, metricsService);
     }
 
     @Bean
