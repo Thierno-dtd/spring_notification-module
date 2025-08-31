@@ -138,7 +138,8 @@ public class PushNotificationService implements NotificationChannelService {
 
     @Override
     public Map<String, Object> getMetrics() {
-        Map<String, Object> baseMetrics = NotificationChannelService.super.getMetrics();
+        // Create a new mutable HashMap from the parent metrics
+        Map<String, Object> baseMetrics = new HashMap<>(NotificationChannelService.super.getMetrics());
 
         baseMetrics.put("push_provider", properties.getPush().getProvider());
         baseMetrics.put("sent_count", sentCount.get());

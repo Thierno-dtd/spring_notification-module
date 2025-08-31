@@ -462,23 +462,43 @@ public class NotificationService {
     public Map<String, Object> getHealthStatus() {
         Map<String, Object> health = new HashMap<>();
 
+        // Statut global
+        health.put("status", "UP");
+        health.put("timestamp", LocalDateTime.now().toString());
+
         // État des canaux
-        Map<ChannelType, Map<String, Object>> channelHealth = new HashMap<>();
+        Map<String, Object> channelHealth = new HashMap<>();
         for (NotificationChannelService service : channelServices) {
-            Map<String, Object> channelMetrics = service.getMetrics();
-            channelMetrics.put("health_check", service.healthCheck());
-            channelHealth.put(service.getChannelType(), channelMetrics);
+            try {
+                Map<String, Object> channelMetrics = new HashMap<>(service.getMetrics()); // copie pour éviter ImmutableMap
+                channelMetrics.put("enabled", service.isEnabled());
+                channelMetrics.put("configured", service.isConfigured());
+                channelMetrics.put("healthy", service.healthCheck());
+
+                channelHealth.put(service.getChannelType().name().toLowerCase(), channelMetrics);
+            } catch (Exception e) {
+                // On capture les erreurs par service pour ne pas faire planter tout le healthCheck
+                Map<String, Object> errorMetrics = new HashMap<>();
+                errorMetrics.put("enabled", false);
+                errorMetrics.put("healthy", false);
+                errorMetrics.put("error", e.getMessage());
+                channelHealth.put(service.getChannelType().name().toLowerCase(), errorMetrics);
+            }
         }
         health.put("channels", channelHealth);
 
-        // État des services
-        health.put("circuit_breaker_service", true);
-        health.put("retry_service", true);
-        health.put("rate_limiter_service", true);
-        health.put("metrics_service", true);
+        // État des services transverses
+        Map<String, Object> coreServices = new HashMap<>();
+        coreServices.put("circuit_breaker_service", true);
+        coreServices.put("retry_service", true);
+        coreServices.put("rate_limiter_service", true);
+        coreServices.put("metrics_service", true);
+
+        health.put("core_services", coreServices);
 
         return health;
     }
+
 
     /**
      * Statistiques avancées pour admin

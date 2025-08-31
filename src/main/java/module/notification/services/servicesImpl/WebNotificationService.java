@@ -126,7 +126,9 @@ public class WebNotificationService implements NotificationChannelService {
 
     @Override
     public Map<String, Object> getMetrics() {
-        Map<String, Object> baseMetrics = NotificationChannelService.super.getMetrics();
+        // Create a new mutable HashMap from the parent metrics
+        Map<String, Object> baseMetrics = new HashMap<>(NotificationChannelService.super.getMetrics());
+
         baseMetrics.put("cached_notifications", webNotificationCache.size());
         baseMetrics.put("webhook_configured", hasWebhookConfiguration());
         baseMetrics.put("web_push_configured", hasWebPushConfiguration());
