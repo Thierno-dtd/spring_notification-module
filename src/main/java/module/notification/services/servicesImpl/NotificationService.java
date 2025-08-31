@@ -1,6 +1,7 @@
 package module.notification.services.servicesImpl;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import module.notification.dto.BulkNotificationDto;
@@ -9,6 +10,7 @@ import module.notification.dto.NotificationRequestDto;
 import module.notification.entities.Notification;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationStatus;
+import module.notification.enums.NotificationType;
 import module.notification.events.NotificationFailedEvent;
 import module.notification.events.NotificationReadEvent;
 import module.notification.events.NotificationSentEvent;
@@ -25,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -44,6 +48,10 @@ public class NotificationService {
     private final NotificationTemplateService templateService;
     private final ApplicationEventPublisher eventPublisher;
     private final UserNotificationSettingsService userSettingsService;
+    private final CircuitBreakerService circuitBreakerService;
+    private final NotificationRetryService retryService;
+    private final AdvancedRateLimiterService rateLimiterService;
+    private final NotificationMetricsService metricsService;
 
     // Map des services par type de canal pour un accès rapide
     private Map<ChannelType, NotificationChannelService> channelServiceMap;
@@ -66,7 +74,7 @@ public class NotificationService {
     public CompletableFuture<NotificationDto> sendNotification(NotificationRequestDto request) {
         try {
             // Vérifier les limites de débit
-            if (isRateLimited(request.getRecipientId())) {
+            if (isRateLimited(request.getRecipientId(), request.getChannels().iterator().next(), request.getType())) {
                 throw new NotificationException("Limite de débit dépassée pour le destinataire: " + request.getRecipientId());
             }
 
@@ -130,6 +138,8 @@ public class NotificationService {
     }
 
     private void processNotification(Notification notification) {
+        long startTime = System.currentTimeMillis();
+
         try {
             notification.setStatus(NotificationStatus.PROCESSING);
             notification = notificationRepository.save(notification);
@@ -137,21 +147,45 @@ public class NotificationService {
             boolean anySuccess = false;
             Map<ChannelType, Exception> channelErrors = new HashMap<>();
 
-            // Envoyer via chaque canal configuré avec gestion des erreurs par canal
             for (ChannelType channel : notification.getChannels()) {
                 try {
+                    // Vérifier le circuit breaker
+                    if (!circuitBreakerService.canSend(channel)) {
+                        log.warn("Circuit breaker ouvert pour le canal {}, envoi ignoré", channel);
+                        continue;
+                    }
+
+                    // Vérifier le rate limiting par canal
+                    if (isRateLimited(notification.getRecipientId(), channel, notification.getType())) {
+                        log.warn("Rate limit dépassé pour le canal {}", channel);
+                        continue;
+                    }
+
                     NotificationChannelService channelService = channelServiceMap.get(channel);
 
                     if (channelService != null && channelService.isEnabled()) {
                         channelService.send(notification);
                         anySuccess = true;
-                        // Métrique enregistrée - implémentation optionnelle
-                        log.debug("Métrique: notification envoyée via {}", channel);
+
+                        // Succès - notifier le circuit breaker
+                        circuitBreakerService.onSuccess(channel);
+
+                        // Enregistrer la métrique
+                        long processingTime = System.currentTimeMillis() - startTime;
+                        metricsService.recordNotificationSent(
+                                notification.getId(),
+                                channel,
+                                notification.getType(),
+                                notification.getPriority(),
+                                notification.getRecipientId(),
+                                notification.getTemplateId(),
+                                processingTime,
+                                getCurrentHttpRequest() // À implémenter
+                        );
+
                         log.debug("Notification {} envoyée via {}", notification.getId(), channel);
                     } else {
                         log.warn("Service de canal {} non disponible ou désactivé", channel);
-                        // Métrique enregistrée - implémentation optionnelle
-                        log.debug("Métrique: notification envoyée via {}", channel);
                     }
 
                 } catch (Exception e) {
@@ -159,11 +193,26 @@ public class NotificationService {
                     log.error("Erreur lors de l'envoi via le canal {} pour la notification {}",
                             channel, notification.getId(), e);
 
-                    // Métrique enregistrée - implémentation optionnelle
-                    log.debug("Métrique: notification envoyée via {}", channel);
+                    // Échec - notifier le circuit breaker
+                    circuitBreakerService.onFailure(channel, e);
 
-                    // Programmer une nouvelle tentative si possible
-                    scheduleRetry(notification, channel, e);
+                    // Enregistrer la métrique d'échec
+                    long processingTime = System.currentTimeMillis() - startTime;
+                    metricsService.recordNotificationFailed(
+                            notification.getId(),
+                            channel,
+                            notification.getType(),
+                            notification.getPriority(),
+                            notification.getRecipientId(),
+                            notification.getTemplateId(),
+                            processingTime,
+                            e.getMessage(),
+                            0, // retry count initial
+                            getCurrentHttpRequest()
+                    );
+
+                    // Programmer un retry
+                    retryService.scheduleRetry(notification, channel, e.getMessage());
                 }
             }
 
@@ -172,12 +221,8 @@ public class NotificationService {
                 notification.setStatus(NotificationStatus.SENT);
                 notification.setSentAt(LocalDateTime.now());
                 eventPublisher.publishEvent(new NotificationSentEvent(this, notification));
-
-                // Nettoyer le cache de limitation de débit après succès
-                clearRateLimit(notification.getRecipientId());
             } else {
                 notification.setStatus(NotificationStatus.FAILED);
-                // Stocker les erreurs dans metadata pour debugging
                 notification.setMetadata(buildErrorMetadata(channelErrors));
             }
 
@@ -223,8 +268,17 @@ public class NotificationService {
             notification.setStatus(NotificationStatus.READ);
             notificationRepository.save(notification);
 
-            // Métrique enregistrée - implémentation optionnelle
-            //log.debug("Métrique: notification envoyée via {}", channel);
+            // Enregistrer la métrique de lecture
+            // Déterminer le canal principal (premier canal de la liste)
+            ChannelType primaryChannel = notification.getChannels().iterator().next();
+            metricsService.recordNotificationRead(
+                    notificationId,
+                    primaryChannel,
+                    notification.getType(),
+                    recipientId,
+                    getCurrentHttpRequest()
+            );
+
             eventPublisher.publishEvent(new NotificationReadEvent(this, notification));
         }
     }
@@ -343,14 +397,16 @@ public class NotificationService {
                 .collect(Collectors.toSet());
     }
 
-    private boolean isRateLimited(String recipientId) {
-        LocalDateTime lastSent = rateLimitCache.get(recipientId);
-        if (lastSent != null) {
-            // Limite: pas plus d'une notification par minute par utilisateur
-            return lastSent.isAfter(LocalDateTime.now().minusMinutes(1));
+    private boolean isRateLimited(String recipientId, ChannelType channel, NotificationType type) {
+        AdvancedRateLimiterService.RateLimitResult result =
+                rateLimiterService.isAllowed(recipientId, channel, type);
+
+        if (!result.isAllowed()) {
+            log.warn("Rate limit dépassé pour l'utilisateur {} sur le canal {}: {}",
+                    recipientId, channel, result.getReason());
         }
-        rateLimitCache.put(recipientId, LocalDateTime.now());
-        return false;
+
+        return !result.isAllowed();
     }
 
     private void clearRateLimit(String recipientId) {
@@ -377,5 +433,94 @@ public class NotificationService {
                 metadata.append(channel).append(": ").append(error.getMessage()).append("; "));
 
         return metadata.toString();
+    }
+
+    /**
+     * Obtient les métriques du service
+     */
+    public Map<String, Object> getServiceMetrics() {
+        Map<String, Object> metrics = new HashMap<>();
+
+        // Métriques temps réel
+        metrics.put("realtime", metricsService.getRealtimeMetrics());
+
+        // État des circuit breakers
+        metrics.put("circuit_breakers", circuitBreakerService.getCircuitBreakerStatus());
+
+        // Statistiques de retry
+        metrics.put("retry_stats", retryService.getRetryStatistics());
+
+        // Dashboard
+        metrics.put("dashboard", metricsService.getDashboardMetrics());
+
+        return metrics;
+    }
+
+    /**
+     * Obtient l'état de santé du service
+     */
+    public Map<String, Object> getHealthStatus() {
+        Map<String, Object> health = new HashMap<>();
+
+        // Statut global
+        health.put("status", "UP");
+        health.put("timestamp", LocalDateTime.now().toString());
+
+        // État des canaux
+        Map<String, Object> channelHealth = new HashMap<>();
+        for (NotificationChannelService service : channelServices) {
+            try {
+                Map<String, Object> channelMetrics = new HashMap<>(service.getMetrics()); // copie pour éviter ImmutableMap
+                channelMetrics.put("enabled", service.isEnabled());
+                channelMetrics.put("configured", service.isConfigured());
+                channelMetrics.put("healthy", service.healthCheck());
+
+                channelHealth.put(service.getChannelType().name().toLowerCase(), channelMetrics);
+            } catch (Exception e) {
+                // On capture les erreurs par service pour ne pas faire planter tout le healthCheck
+                Map<String, Object> errorMetrics = new HashMap<>();
+                errorMetrics.put("enabled", false);
+                errorMetrics.put("healthy", false);
+                errorMetrics.put("error", e.getMessage());
+                channelHealth.put(service.getChannelType().name().toLowerCase(), errorMetrics);
+            }
+        }
+        health.put("channels", channelHealth);
+
+        // État des services transverses
+        Map<String, Object> coreServices = new HashMap<>();
+        coreServices.put("circuit_breaker_service", true);
+        coreServices.put("retry_service", true);
+        coreServices.put("rate_limiter_service", true);
+        coreServices.put("metrics_service", true);
+
+        health.put("core_services", coreServices);
+
+        return health;
+    }
+
+
+    /**
+     * Statistiques avancées pour admin
+     */
+    public Map<String, Object> getAdminStatistics(LocalDateTime startDate, LocalDateTime endDate) {
+        Map<String, Object> stats = new HashMap<>();
+
+        // Métriques par période
+        stats.put("period_stats", metricsService.getPeriodStatistics(startDate, endDate));
+
+        // Performance par canal
+        stats.putAll(getServiceMetrics());
+
+        return stats;
+    }
+
+    // 5. Méthode utilitaire pour obtenir la requête HTTP actuelle (à ajouter)
+    private HttpServletRequest getCurrentHttpRequest() {
+        try {
+            return ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+        } catch (IllegalStateException e) {
+            return null; // Pas dans un contexte web
+        }
     }
 }
