@@ -36,3 +36,5 @@ build/
 # Ignore le vrai fichier de config
 src/main/resources/application.properties
 
+.env
+logs/
