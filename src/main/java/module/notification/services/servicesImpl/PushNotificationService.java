@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import module.notification.config.NotificationProperties;
 import module.notification.entities.Notification;
 import module.notification.entities.NotificationTemplate;
-import module.notification.entities.NotificationRecipient;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationPriority;
 import module.notification.exceptions.NotificationException;

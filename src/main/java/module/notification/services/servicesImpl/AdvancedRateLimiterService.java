@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import module.notification.config.NotificationProperties;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationType;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
@@ -16,7 +15,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @RequiredArgsConstructor

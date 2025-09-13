@@ -298,8 +298,8 @@ public class NotificationService {
         log.info("Marqué {} notifications comme lues pour {}", unreadNotifications.size(), recipientId);
 
         // Enregistrer les métriques
-        //unreadNotifications.forEach(notification ->
-        //metricsService.recordNotificationRead(null, notification.getType()));
+        unreadNotifications.forEach(notification ->
+        metricsService.recordNotificationRead(notification.getId(), notification.getChannels().iterator().next(),  notification.getType(), recipientId, getCurrentHttpRequest()));
     }
 
     @Transactional(readOnly = true)

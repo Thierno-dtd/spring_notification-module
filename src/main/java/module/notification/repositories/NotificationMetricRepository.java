@@ -2,7 +2,6 @@ package module.notification.repositories;
 
 import module.notification.entities.NotificationMetric;
 import module.notification.enums.ChannelType;
-import module.notification.enums.NotificationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

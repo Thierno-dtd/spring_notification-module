@@ -6,7 +6,6 @@ import module.notification.config.NotificationProperties;
 import module.notification.entities.Notification;
 import module.notification.entities.NotificationRetry;
 import module.notification.enums.ChannelType;
-import module.notification.enums.NotificationStatus;
 import module.notification.repositories.NotificationRepository;
 import module.notification.repositories.NotificationRetryRepository;
 import module.notification.services.Iservices.NotificationChannelService;
@@ -18,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
