@@ -18,13 +18,10 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.Context;
 
 import jakarta.annotation.PostConstruct;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 import java.util.regex.Pattern;
 
 @Service
