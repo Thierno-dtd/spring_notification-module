@@ -15,7 +15,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/web-notifications")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @ConditionalOnProperty(name = "notification.web.enabled", havingValue = "true", matchIfMissing = true)
 @Tag(name = "Web Notifications", description = "API pour gérer les notifications web en temps réel")
 @Slf4j

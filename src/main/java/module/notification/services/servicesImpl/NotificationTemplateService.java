@@ -39,13 +39,22 @@ public class NotificationTemplateService {
             templateDto.setId(generateTemplateId(templateDto.getName()));
         }
 
-        // Extraire les variables du template
-        templateDto.setVariables(extractVariables(
+        // On fusionne les variables fournies manuellement (via Swagger/JSON) avec
+        // celles détectées automatiquement dans les templates ({{variable}}).
+        // Avant, extractVariables() écrasait totalement ce que l'utilisateur envoyait,
+        // ce qui donnait un champ "variables" vide dès que le template n'utilisait pas
+        // exactement la syntaxe {{...}}.
+        Set<String> mergedVariables = new HashSet<>();
+        if (templateDto.getVariables() != null) {
+            mergedVariables.addAll(templateDto.getVariables());
+        }
+        mergedVariables.addAll(extractVariables(
                 templateDto.getEmailTemplate(),
                 templateDto.getSmsTemplate(),
                 templateDto.getPushTemplate(),
                 templateDto.getWebTemplate()
         ));
+        templateDto.setVariables(mergedVariables);
 
         NotificationTemplate template = notificationMapper.toEntity(templateDto);
         template = templateRepository.save(template);
@@ -94,13 +103,18 @@ public class NotificationTemplateService {
         existingTemplate.setWebTemplate(templateDto.getWebTemplate());
         existingTemplate.setIsActive(templateDto.getIsActive());
 
-        // Re-extraire les variables
-        existingTemplate.setVariables(extractVariables(
+        // Re-extraire les variables en fusionnant avec celles fournies manuellement
+        Set<String> mergedVariables = new HashSet<>();
+        if (templateDto.getVariables() != null) {
+            mergedVariables.addAll(templateDto.getVariables());
+        }
+        mergedVariables.addAll(extractVariables(
                 templateDto.getEmailTemplate(),
                 templateDto.getSmsTemplate(),
                 templateDto.getPushTemplate(),
                 templateDto.getWebTemplate()
         ));
+        existingTemplate.setVariables(mergedVariables);
 
         existingTemplate = templateRepository.save(existingTemplate);
 

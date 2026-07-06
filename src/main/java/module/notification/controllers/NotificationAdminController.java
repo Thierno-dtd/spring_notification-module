@@ -19,7 +19,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin/notifications")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Tag(name = "Administration", description = "API d'administration pour les notifications")
 @SecurityRequirement(name = "admin-auth")
 @Slf4j

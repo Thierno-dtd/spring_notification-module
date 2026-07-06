@@ -18,7 +18,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/push-notifications")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @ConditionalOnProperty(name = "notification.push.enabled", havingValue = "true")
 @Tag(name = "Push Notifications", description = "API pour gérer les notifications push")
 @Slf4j

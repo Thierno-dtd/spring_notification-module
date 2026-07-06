@@ -19,7 +19,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/notification-templates")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 
 public class NotificationTemplateController {
 

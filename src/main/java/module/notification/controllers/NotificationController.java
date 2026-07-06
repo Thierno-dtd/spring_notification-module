@@ -20,7 +20,6 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 
 public class NotificationController {
 

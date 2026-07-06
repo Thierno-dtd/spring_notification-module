@@ -1,0 +1,61 @@
+services:
+  app:
+    build: .
+    container_name: notification-service
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    env_file:
+      - .env
+    environment:
+      # En docker-compose, les hôtes sont les noms des services, pas "localhost"
+      DB_URL: jdbc:postgresql://db:5432/notifications
+      REDIS_HOST: redis
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - notification-net
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: notification-db
+    environment:
+      POSTGRES_DB: notifications
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-azerty}
+    ports:
+      - "5432:5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - notification-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: notification-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - notification-net
+    restart: unless-stopped
+
+volumes:
+  notification-db-data:
+
+networks:
+  notification-net:
+    driver: bridge
