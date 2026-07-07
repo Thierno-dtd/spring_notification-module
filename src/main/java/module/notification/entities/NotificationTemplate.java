@@ -1,11 +1,11 @@
 package module.notification.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import module.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -28,8 +28,8 @@ public class NotificationTemplate {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    private NotificationType type;
+    @NotBlank
+    private String type;
 
     @Column(name = "email_subject")
     private String emailSubject;

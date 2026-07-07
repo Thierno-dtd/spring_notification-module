@@ -4,14 +4,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationPriority;
-import module.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -29,9 +27,8 @@ public class NotificationRequestDto {
     private String title;
 
     private String content;
-
-    @NotNull
-    private NotificationType type;
+    @NotBlank
+    private String type;
 
     private NotificationPriority priority = NotificationPriority.MEDIUM;
 

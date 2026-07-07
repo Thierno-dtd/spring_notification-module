@@ -1,7 +1,6 @@
 package module.notification.repositories;
 
 import module.notification.entities.NotificationTemplate;
-import module.notification.enums.NotificationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,7 +13,7 @@ import java.util.Optional;
 public interface NotificationTemplateRepository extends JpaRepository<NotificationTemplate, String> {
     List<NotificationTemplate> findByIsActiveTrue();
 
-    List<NotificationTemplate> findByTypeAndIsActiveTrue(NotificationType type);
+    List<NotificationTemplate> findByTypeAndIsActiveTrue(String  type);
 
     Optional<NotificationTemplate> findByIdAndIsActiveTrue(String id);
 

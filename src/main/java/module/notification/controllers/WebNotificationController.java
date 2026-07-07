@@ -158,7 +158,7 @@ public class WebNotificationController {
                 .id(System.currentTimeMillis()) // ID temporaire pour le test
                 .title(title)
                 .content(content)
-                .type(module.notification.enums.NotificationType.SYSTEM)
+                .type(module.notification.enums.NotificationTypeCodes.SYSTEM)
                 .priority(module.notification.enums.NotificationPriority.MEDIUM)
                 .status(module.notification.enums.NotificationStatus.PENDING)
                 .recipientId(userId)

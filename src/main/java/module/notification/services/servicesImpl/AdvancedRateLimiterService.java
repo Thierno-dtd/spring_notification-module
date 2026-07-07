@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import module.notification.config.NotificationProperties;
 import module.notification.enums.ChannelType;
-import module.notification.enums.NotificationType;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
@@ -47,7 +46,7 @@ public class AdvancedRateLimiterService {
     /**
      * Vérifie si une requête est autorisée selon les règles de rate limiting
      */
-    public RateLimitResult isAllowed(String userId, ChannelType channel, NotificationType type) {
+    public RateLimitResult isAllowed(String userId, ChannelType channel, String type) {
         if (!properties.getRateLimit().isEnabled()) {
             return RateLimitResult.allowed();
         }
@@ -111,9 +110,9 @@ public class AdvancedRateLimiterService {
         return checkSlidingWindow(key, Duration.ofHours(1), hourlyLimit);
     }
 
-    private RateLimitResult checkTypeLimits(String userId, NotificationType type) {
+    private RateLimitResult checkTypeLimits(String userId, String type) {
         // Limites spécifiques par type (configurable)
-        String key = "rate_limit:type:" + type.name() + ":" + userId + ":hour";
+        String key = "rate_limit:type:" + type + ":" + userId + ":hour";
         return checkSlidingWindow(key, Duration.ofHours(1), 50); // Limite par défaut
     }
 

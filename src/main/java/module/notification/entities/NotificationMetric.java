@@ -7,7 +7,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationPriority;
-import module.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
 
@@ -34,9 +33,8 @@ public class NotificationMetric {
     @Column(name = "channel", nullable = false)
     private ChannelType channel;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type")
-    private NotificationType type;
+    @Column(name = "type", nullable = false)
+    private String type;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "priority")

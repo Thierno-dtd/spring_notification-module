@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationPriority;
 import module.notification.enums.NotificationStatus;
-import module.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -34,8 +33,8 @@ public class Notification {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Enumerated(EnumType.STRING)
-    private NotificationType type;
+    @Column(nullable = false, length = 50)
+    private String type;
 
     @Enumerated(EnumType.STRING)
     private NotificationPriority priority;

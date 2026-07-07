@@ -2,7 +2,6 @@ package module.notification.services.servicesImpl;
 
 import module.notification.dto.NotificationTemplateDto;
 import module.notification.entities.NotificationTemplate;
-import module.notification.enums.NotificationType;
 import module.notification.exceptions.TemplateNotFoundException;
 import module.notification.mappers.NotificationMapper;
 import module.notification.repositories.NotificationTemplateRepository;
@@ -72,7 +71,7 @@ public class NotificationTemplateService {
     }
 
     @Transactional(readOnly = true)
-    public List<NotificationTemplateDto> getTemplatesByType(NotificationType type) {
+    public List<NotificationTemplateDto> getTemplatesByType(String type) {
         return templateRepository.findByTypeAndIsActiveTrue(type)
                 .stream()
                 .map(notificationMapper::toDto)

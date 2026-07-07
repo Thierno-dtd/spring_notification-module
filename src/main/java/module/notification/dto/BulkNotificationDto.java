@@ -8,7 +8,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationPriority;
-import module.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,7 +24,8 @@ public class BulkNotificationDto {
 
     private String content;
 
-    private NotificationType type;
+    @NotBlank
+    private String type;
     private NotificationPriority priority;
 
     @NotEmpty

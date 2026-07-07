@@ -1,15 +1,11 @@
 package module.notification.controllers;
 
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
-import io.swagger.v3.oas.annotations.info.Info;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import module.notification.dto.NotificationTemplateDto;
-import module.notification.enums.NotificationType;
 import module.notification.services.servicesImpl.NotificationTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -52,7 +48,7 @@ public class NotificationTemplateController {
     @GetMapping("/by-type/{type}")
     @Operation(summary = "Récupérer les templates par type", description = "Récupère les templates filtrés par type de notification")
     public ResponseEntity<List<NotificationTemplateDto>> getTemplatesByType(
-            @PathVariable @Parameter(description = "Type de notification") NotificationType type) {
+            @PathVariable @Parameter(description = "Type de notification") String type) {
 
         List<NotificationTemplateDto> templates = templateService.getTemplatesByType(type);
         return ResponseEntity.ok(templates);

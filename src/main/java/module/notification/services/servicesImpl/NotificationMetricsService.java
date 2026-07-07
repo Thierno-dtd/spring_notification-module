@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import module.notification.entities.NotificationMetric;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationPriority;
-import module.notification.enums.NotificationType;
 import module.notification.repositories.NotificationMetricRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
@@ -33,7 +32,7 @@ public class NotificationMetricsService {
     private final Map<String, Long> processingTimes = new ConcurrentHashMap<>();
 
     @Async("notificationTaskExecutor")
-    public void recordNotificationSent(Long notificationId, ChannelType channel, NotificationType type,
+    public void recordNotificationSent(Long notificationId, ChannelType channel, String type,
                                        NotificationPriority priority, String recipientId, String templateId,
                                        long processingTimeMs, HttpServletRequest request) {
 
@@ -46,7 +45,7 @@ public class NotificationMetricsService {
     }
 
     @Async("notificationTaskExecutor")
-    public void recordNotificationFailed(Long notificationId, ChannelType channel, NotificationType type,
+    public void recordNotificationFailed(Long notificationId, ChannelType channel, String type,
                                          NotificationPriority priority, String recipientId, String templateId,
                                          long processingTimeMs, String errorMessage, int retryCount,
                                          HttpServletRequest request) {
@@ -60,7 +59,7 @@ public class NotificationMetricsService {
     }
 
     @Async("notificationTaskExecutor")
-    public void recordNotificationRead(Long notificationId, ChannelType channel, NotificationType type,
+    public void recordNotificationRead(Long notificationId, ChannelType channel, String type,
                                        String recipientId, HttpServletRequest request) {
 
         recordMetric(notificationId, channel, type, null, "READ", recipientId, null,
@@ -72,7 +71,7 @@ public class NotificationMetricsService {
     }
 
     @Async("notificationTaskExecutor")
-    public void recordNotificationDelivered(Long notificationId, ChannelType channel, NotificationType type,
+    public void recordNotificationDelivered(Long notificationId, ChannelType channel, String type,
                                             String recipientId, long deliveryTimeMs) {
 
         recordMetric(notificationId, channel, type, null, "DELIVERED", recipientId, null,
@@ -83,7 +82,7 @@ public class NotificationMetricsService {
         incrementRealtimeCounter("delivered_total");
     }
 
-    private void recordMetric(Long notificationId, ChannelType channel, NotificationType type,
+    private void recordMetric(Long notificationId, ChannelType channel, String type,
                               NotificationPriority priority, String status, String recipientId,
                               String templateId, Long processingTimeMs, String errorMessage,
                               int retryCount, HttpServletRequest request) {
@@ -169,7 +168,7 @@ public class NotificationMetricsService {
         Map<String, Map<String, Long>> typeMetrics = new HashMap<>();
 
         for (Object[] row : typeStats) {
-            String type = row[0] != null ? ((NotificationType) row[0]).name() : "UNKNOWN";
+            String type = row[0] != null ? row[0].toString() : "UNKNOWN";
             String status = (String) row[1];
             Long count = (Long) row[2];
 

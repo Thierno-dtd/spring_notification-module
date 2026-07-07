@@ -1,6 +1,7 @@
 package module.notification.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,7 +9,6 @@ import lombok.NoArgsConstructor;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationPriority;
 import module.notification.enums.NotificationStatus;
-import module.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -23,7 +23,8 @@ public class NotificationDto {
     private Long id;
     private String title;
     private String content;
-    private NotificationType type;
+    @NotBlank
+    private String  type;
     private NotificationPriority priority;
     private NotificationStatus status;
     private String recipientId;

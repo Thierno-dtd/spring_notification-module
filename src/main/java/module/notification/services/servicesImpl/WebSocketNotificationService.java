@@ -32,7 +32,7 @@ public class WebSocketNotificationService implements NotificationChannelService 
         payload.put("id", notification.getId());
         payload.put("title", notification.getTitle());
         payload.put("content", notification.getContent());
-        payload.put("type", notification.getType().name());
+        payload.put("type", notification.getType());
         payload.put("priority", notification.getPriority().name());
         payload.put("timestamp", notification.getCreatedAt().toString());
 

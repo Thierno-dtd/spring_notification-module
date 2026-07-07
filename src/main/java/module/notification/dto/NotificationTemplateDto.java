@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import module.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -28,8 +27,8 @@ public class NotificationTemplateDto {
 
     @Schema(example = "Email de bienvenue envoyé à l'inscription")
     private String description;
-
-    private NotificationType type;
+    @NotBlank
+    private String type;
 
     @Schema(example = "Bienvenue {{name}} !")
     private String emailSubject;

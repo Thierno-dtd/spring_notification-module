@@ -7,6 +7,7 @@ import module.notification.entities.Notification;
 import module.notification.entities.NotificationTemplate;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationPriority;
+import module.notification.enums.NotificationTypeCodes;
 import module.notification.exceptions.NotificationException;
 import module.notification.repositories.NotificationTemplateRepository;
 import module.notification.services.Iservices.NotificationChannelService;
@@ -398,7 +399,7 @@ public class PushNotificationService implements NotificationChannelService {
         Map<String, String> data = new HashMap<>();
 
         data.put("notificationId", String.valueOf(notification.getId()));
-        data.put("type", notification.getType().name());
+        data.put("type", notification.getType());
         data.put("priority", notification.getPriority().name());
         data.put("recipientId", notification.getRecipientId());
         data.put("timestamp", String.valueOf(System.currentTimeMillis()));
@@ -473,7 +474,7 @@ public class PushNotificationService implements NotificationChannelService {
                 .id(System.currentTimeMillis())
                 .title("Test Push Notification")
                 .content("Ceci est une notification de test pour vérifier le fonctionnement du service push.")
-                .type(module.notification.enums.NotificationType.SYSTEM)
+                .type(NotificationTypeCodes.SYSTEM)
                 .priority(NotificationPriority.MEDIUM)
                 .status(module.notification.enums.NotificationStatus.PENDING)
                 .recipientId(userId)

@@ -10,7 +10,6 @@ import module.notification.dto.NotificationRequestDto;
 import module.notification.entities.Notification;
 import module.notification.enums.ChannelType;
 import module.notification.enums.NotificationStatus;
-import module.notification.enums.NotificationType;
 import module.notification.events.NotificationFailedEvent;
 import module.notification.events.NotificationReadEvent;
 import module.notification.events.NotificationSentEvent;
@@ -391,13 +390,13 @@ public class NotificationService {
                 .build();
     }
 
-    private Set<ChannelType> filterChannelsByUserPreferences(String recipientId, Set<ChannelType> requestedChannels, module.notification.enums.NotificationType type) {
+    private Set<ChannelType> filterChannelsByUserPreferences(String recipientId, Set<ChannelType> requestedChannels, String type) {
         return requestedChannels.stream()
                 .filter(channel -> userSettingsService.isChannelEnabledForUser(recipientId, channel, type))
                 .collect(Collectors.toSet());
     }
 
-    private boolean isRateLimited(String recipientId, ChannelType channel, NotificationType type) {
+    private boolean isRateLimited(String recipientId, ChannelType channel, String type) {
         AdvancedRateLimiterService.RateLimitResult result =
                 rateLimiterService.isAllowed(recipientId, channel, type);
 

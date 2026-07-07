@@ -12,7 +12,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -170,7 +169,7 @@ public class PushNotificationController {
                 .id(System.currentTimeMillis()) // ID temporaire
                 .title(dto.getTitle())
                 .content(dto.getBody())
-                .type(module.notification.enums.NotificationType.CUSTOM)
+                .type(module.notification.enums.NotificationTypeCodes.CUSTOM)
                 .priority(module.notification.enums.NotificationPriority.MEDIUM)
                 .status(module.notification.enums.NotificationStatus.PENDING)
                 .recipientId(dto.getRecipientId())
@@ -193,7 +192,7 @@ public class PushNotificationController {
                 .id(System.currentTimeMillis()) // ID temporaire pour le test
                 .title(title)
                 .content(content)
-                .type(module.notification.enums.NotificationType.SYSTEM)
+                .type(module.notification.enums.NotificationTypeCodes.SYSTEM)
                 .priority(module.notification.enums.NotificationPriority.MEDIUM)
                 .status(module.notification.enums.NotificationStatus.PENDING)
                 .recipientId(userId)

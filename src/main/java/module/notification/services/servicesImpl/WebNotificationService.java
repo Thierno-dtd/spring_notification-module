@@ -209,7 +209,7 @@ public class WebNotificationService implements NotificationChannelService {
         webNotification.put("id", notification.getId());
         webNotification.put("title", notification.getTitle());
         webNotification.put("content", processContent(notification));
-        webNotification.put("type", notification.getType().name());
+        webNotification.put("type", notification.getType());
         webNotification.put("priority", notification.getPriority().name());
         webNotification.put("status", notification.getStatus().name());
         webNotification.put("createdAt", notification.getCreatedAt().toString());

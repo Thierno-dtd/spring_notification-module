@@ -242,7 +242,7 @@ public class TemplateValidationService {
 
         // Vérifier les variables requises selon le type
         if (template.getType() != null) {
-            Set<String> requiredVars = REQUIRED_VARIABLES_BY_TYPE.get(template.getType().name());
+            Set<String> requiredVars = REQUIRED_VARIABLES_BY_TYPE.get(template.getType());
             if (requiredVars != null) {
                 Set<String> missingVars = new HashSet<>(requiredVars);
                 missingVars.removeAll(allVariables);

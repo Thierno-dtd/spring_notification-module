@@ -72,7 +72,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     /**
      * Trouve les notifications par type
      */
-    List<Notification> findByType(module.notification.enums.NotificationType type);
+    List<Notification> findByType(String type);
 
     /**
      * Trouve les notifications par priorité
